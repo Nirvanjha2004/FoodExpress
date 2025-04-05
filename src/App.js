@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import { CartProvider } from './contexts/CartContext';
+import './styles/CartComponent.css';
 
 function App() {
   return (
