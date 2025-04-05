@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../contexts/CartContext';
 
 const CartComponent = () => {
   const { cartItems, loading, error, removeFromCart, updateQuantity } = useCart();
+  const [processingItems, setProcessingItems] = useState({});
 
   if (loading) {
     return <div className="loading">Loading cart...</div>;
@@ -12,9 +13,37 @@ const CartComponent = () => {
     return <div className="error">{error}</div>;
   }
 
-  if (cartItems.length === 0) {
+  if (!cartItems || cartItems.length === 0) {
     return <div className="empty-cart">Your cart is empty</div>;
   }
+
+  const handleUpdateQuantity = async (itemId, newQuantity) => {
+    if (newQuantity < 1) return;
+    
+    // Set this item as processing
+    setProcessingItems(prev => ({ ...prev, [itemId]: true }));
+    
+    try {
+      await updateQuantity(itemId, newQuantity);
+    } catch (err) {
+      console.error("Failed to update quantity:", err);
+    } finally {
+      // Remove processing state
+      setProcessingItems(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  const handleRemoveItem = async (itemId) => {
+    setProcessingItems(prev => ({ ...prev, [itemId]: true }));
+    
+    try {
+      await removeFromCart(itemId);
+    } catch (err) {
+      console.error("Failed to remove item:", err);
+    } finally {
+      setProcessingItems(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
 
   const calculateTotal = () => {
     return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -31,18 +60,25 @@ const CartComponent = () => {
             <p>${item.price}</p>
             <div className="quantity">
               <button 
-                onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                disabled={processingItems[item.id] || item.quantity <= 1}
               >
                 -
               </button>
               <span>{item.quantity}</span>
               <button 
-                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                disabled={processingItems[item.id]}
               >
                 +
               </button>
             </div>
-            <button onClick={() => removeFromCart(item.id)}>Remove</button>
+            <button 
+              onClick={() => handleRemoveItem(item.id)}
+              disabled={processingItems[item.id]}
+            >
+              {processingItems[item.id] ? 'Removing...' : 'Remove'}
+            </button>
           </div>
         </div>
       ))}
